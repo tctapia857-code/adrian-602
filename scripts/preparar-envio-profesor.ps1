@@ -1,17 +1,18 @@
 param(
     [Parameter(Mandatory = $true)][string]$CorreoProfesor,
     [string]$Alumno = 'Adrian Tapia',
-    [string]$Grupo = '602'
+    [string]$Grupo = '602',
+    [string]$Contenedor = 'n8n'
 )
 $ErrorActionPreference = 'Stop'
 if ($CorreoProfesor -notmatch '^[^\s@]+@[^\s@]+\.[^\s@]+$') { throw 'Correo del profesor invalido.' }
-if (-not (Test-Path 'compose.yaml')) { throw 'Ejecuta esto desde la carpeta del proyecto que contiene compose.yaml.' }
+if ($Contenedor -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_.-]*$') { throw 'Nombre de contenedor invalido.' }
 function Check-Docker {
     if ($LASTEXITCODE -ne 0) { throw 'Docker/n8n devolvio un error. No se confirma el envio.' }
 }
-$cid = docker compose ps -q n8n
+$running = docker inspect --format '{{.State.Running}}' $Contenedor
 Check-Docker
-if (-not $cid) { throw 'Primero inicia n8n: docker compose --profile cliente up -d n8n' }
+if ($running -ne 'true') { throw "El contenedor $Contenedor no esta iniciado. No se creara otro n8n." }
 # Marca cada destinatario por separado sin publicar su correo.
 $CorreoProfesor = $CorreoProfesor.Trim().ToLowerInvariant()
 $hashAlgorithm = [Security.Cryptography.SHA256]::Create()
@@ -20,7 +21,7 @@ try {
 } finally { $hashAlgorithm.Dispose() }
 $workflowId = 'productos-render-' + $recipientKey
 # Evita repetir un envio a la misma direccion; permite otros destinatarios.
-docker compose exec -T n8n node -e "const fs=require('fs'); if(fs.existsSync('/home/node/.n8n/productos-enviado-$recipientKey.json')){console.error('Este envio ya se completo. No se enviara otra vez.');process.exit(2)}"
+docker exec $Contenedor node -e "const fs=require('fs'); if(fs.existsSync('/home/node/.n8n/productos-enviado-$recipientKey.json')){console.error('Este envio ya se completo. No se enviara otra vez.');process.exit(2)}"
 Check-Docker
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ('productos-n8n-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
@@ -40,10 +41,10 @@ try {
     }
     $json = $workflow | ConvertTo-Json -Depth 50
     [IO.File]::WriteAllText($template, $json, (New-Object System.Text.UTF8Encoding($false)))
-    docker compose cp $template n8n:/tmp/productos-correo-nuevo.json
+    docker cp $template "${Contenedor}:/tmp/productos-correo-nuevo.json"
     Check-Docker
     # Exporta flujos, no credenciales ni tokens; solo reutiliza la referencia Gmail.
-    docker compose exec -T n8n n8n export:workflow --all --output=/tmp/productos-flujos-existentes.json
+    docker exec $Contenedor n8n export:workflow --all --output=/tmp/productos-flujos-existentes.json
     Check-Docker
     $prepare = @'
 const fs = require('fs');
@@ -64,15 +65,15 @@ console.log('Referencia Gmail existente reutilizada. El flujo original no se mod
 '@
     $preparePath = Join-Path $work 'prepare.cjs'
     [IO.File]::WriteAllText($preparePath, $prepare, (New-Object System.Text.UTF8Encoding($false)))
-    docker compose cp $preparePath n8n:/tmp/productos-preparar.cjs
+    docker cp $preparePath "${Contenedor}:/tmp/productos-preparar.cjs"
     Check-Docker
-    docker compose exec -T n8n node /tmp/productos-preparar.cjs
+    docker exec $Contenedor node /tmp/productos-preparar.cjs
     Check-Docker
-    docker compose exec -T n8n n8n import:workflow --input=/tmp/productos-correo-nuevo.json
+    docker exec $Contenedor n8n import:workflow --input=/tmp/productos-correo-nuevo.json
     Check-Docker
     Write-Host "Enviando un correo a $CorreoProfesor con el catalogo real de Render..."
     # Conserva el codigo de salida; el log queda local en n8n, no se sube a GitHub.
-    docker compose exec -T n8n sh -c "n8n execute --id=$workflowId --rawOutput > /tmp/productos-resultado-envio.log 2>&1"
+    docker exec $Contenedor sh -c "n8n execute --id=$workflowId --rawOutput > /tmp/productos-resultado-envio.log 2>&1"
     if ($LASTEXITCODE -ne 0) {
         throw 'n8n no confirmo el envio. Abre el flujo nuevo en n8n para revisar la conexion Gmail. No se marco como enviado.'
     }
@@ -104,11 +105,11 @@ console.log('CONFIRMADO: Gmail acepto el correo para el profesor. No lo ejecutes
 '@
     $checkPath = Join-Path $work 'check.cjs'
     [IO.File]::WriteAllText($checkPath, $check, (New-Object System.Text.UTF8Encoding($false)))
-    docker compose cp $checkPath n8n:/tmp/productos-confirmar.cjs
+    docker cp $checkPath "${Contenedor}:/tmp/productos-confirmar.cjs"
     Check-Docker
-    docker compose exec -T n8n node /tmp/productos-confirmar.cjs
+    docker exec $Contenedor node /tmp/productos-confirmar.cjs
     Check-Docker
 } finally {
-    docker compose exec -T n8n node -e "const fs=require('fs'); for(const p of ['/tmp/productos-flujos-existentes.json','/tmp/productos-correo-nuevo.json','/tmp/productos-preparar.cjs','/tmp/productos-confirmar.cjs']) try{fs.unlinkSync(p)}catch{}" | Out-Null
+    docker exec $Contenedor node -e "const fs=require('fs'); for(const p of ['/tmp/productos-flujos-existentes.json','/tmp/productos-correo-nuevo.json','/tmp/productos-preparar.cjs','/tmp/productos-confirmar.cjs']) try{fs.unlinkSync(p)}catch{}" | Out-Null
     Remove-Item -Recurse -Force $work
 }
