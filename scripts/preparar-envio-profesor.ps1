@@ -60,7 +60,7 @@ if (candidates.size !== 1) {
   process.exit(3);
 }
 workflow.nodes.find(n => n.id === 'gmail').credentials = {gmailOAuth2: [...candidates.values()][0]};
-fs.writeFileSync('/tmp/productos-correo-nuevo.json', JSON.stringify(workflow));
+fs.writeFileSync('/tmp/productos-correo-listo.json', JSON.stringify(workflow));
 console.log('Referencia Gmail existente reutilizada. El flujo original no se modifica.');
 '@
     $preparePath = Join-Path $work 'prepare.cjs'
@@ -69,7 +69,7 @@ console.log('Referencia Gmail existente reutilizada. El flujo original no se mod
     Check-Docker
     docker exec $Contenedor node /tmp/productos-preparar.cjs
     Check-Docker
-    docker exec $Contenedor n8n import:workflow --input=/tmp/productos-correo-nuevo.json
+    docker exec $Contenedor n8n import:workflow --input=/tmp/productos-correo-listo.json
     Check-Docker
     Write-Host "Enviando un correo a $CorreoProfesor con el catalogo real de Render..."
     # Conserva el codigo de salida; el log queda local en n8n, no se sube a GitHub.
@@ -110,6 +110,6 @@ console.log('CONFIRMADO: Gmail acepto el correo para el profesor. No lo ejecutes
     docker exec $Contenedor node /tmp/productos-confirmar.cjs
     Check-Docker
 } finally {
-    docker exec $Contenedor node -e "const fs=require('fs'); for(const p of ['/tmp/productos-flujos-existentes.json','/tmp/productos-correo-nuevo.json','/tmp/productos-preparar.cjs','/tmp/productos-confirmar.cjs']) try{fs.unlinkSync(p)}catch{}" | Out-Null
+    docker exec $Contenedor node -e "const fs=require('fs'); for(const p of ['/tmp/productos-flujos-existentes.json','/tmp/productos-correo-nuevo.json','/tmp/productos-correo-listo.json','/tmp/productos-preparar.cjs','/tmp/productos-confirmar.cjs']) try{fs.unlinkSync(p)}catch{}" | Out-Null
     Remove-Item -Recurse -Force $work
 }
