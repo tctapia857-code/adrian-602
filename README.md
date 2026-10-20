@@ -15,7 +15,7 @@ npm start
 
 En PowerShell, usar `Copy-Item .env.example .env` en lugar de `cp`. No reemplazar un `.env` que ya contenga tu configuración.
 
-La API escucha en el puerto 9090. `npm run dev` activa la recarga automática. El esquema se prepara al iniciar; también se puede ejecutar `npm run db:migrate`. No se insertan productos automáticamente.
+La API escucha en el puerto 9090. `npm run dev` activa la recarga automática. El esquema se prepara al iniciar; también se puede ejecutar `npm run db:migrate`. Al iniciar se cargan una sola vez 15 productos de papelería. Se conservan los nombres existentes y los reinicios no duplican registros. La carga queda registrada en app_seeds; no recupera productos eliminados por el usuario. También puedes ejecutarla con npm run db:seed después de preparar el esquema.
 
 La imagen PostgreSQL 17 está fijada por digest en `compose.yaml`. Docker crea el volumen `adrian-inventario_postgres_data`, montado en `/var/lib/postgresql/data`. `docker compose down` conserva el volumen y `docker compose up -d --wait postgres` recupera sus datos. **`docker compose down -v` elimina los datos**. Las credenciales de `.env.example` son únicamente para el desarrollo local y PostgreSQL solo se publica en loopback.
 
@@ -46,7 +46,7 @@ curl --fail -X PUT http://127.0.0.1:9090/api/productos/1 \
 curl --fail -X DELETE http://127.0.0.1:9090/api/productos/1
 ```
 
-En Windows PowerShell se puede usar `curl.exe` o un cliente como Postman. En producción, todas las rutas de productos requieren el encabezado `X-API-Key`. `/health` permanece público para Render. Localmente, puedes activar la misma protección asignando `API_KEY` en `.env`.
+En Windows PowerShell se puede usar `curl.exe` o un cliente como Postman. Las consultas GET de productos son públicas, tanto en local como en Render. En producción, POST, PUT y DELETE requieren el encabezado `X-API-Key`. `/health` permanece público para Render. Localmente, puedes activar la misma protección asignando `API_KEY` en `.env`.
 
 Las consultas SQL son parametrizadas. Los datos inválidos devuelven 400, la clave ausente o incorrecta 401 y los productos inexistentes 404. Los errores internos no exponen detalles de la conexión.
 
@@ -70,7 +70,7 @@ El despliegue está descrito en `render.yaml`: API Node.js y PostgreSQL administ
 4. Render asigna `DATABASE_URL` desde su PostgreSQL y genera `API_KEY`. No uses `localhost` como base de datos en Render. El servidor respeta el `PORT` que Render inyecta y escucha en `0.0.0.0`.
 5. Espera al estado **Live** y comprueba `/health` en la URL real que Render asigne. Esa URL no se conoce hasta crear el servicio.
 6. Consulta `API_KEY` en las variables del servicio y guárdala como credencial de n8n. No la pegues en el código, el repositorio ni el chat.
-7. Crea un producto por POST antes de consultar `GET /api/productos/<id>`. La base comienza vacía y el id puede ser distinto de 1.
+7. Consulta `/api/productos` para ver los 15 productos iniciales antes de consultar `GET /api/productos/<id>`. La base recibe automáticamente el catálogo inicial; consulta la lista para conocer los ids existentes.
 
 El plan gratuito puede suspender la API por inactividad; la primera petición puede tardar más. El flujo de n8n permite hasta 120 segundos por petición.
 
@@ -92,14 +92,20 @@ Abre n8n en tu navegador, en el puerto local 5678, y crea su usuario propietario
 
 Importa el archivo JSON desde el menú de workflows. En **Configurar URL e ID**, usa `http://host.docker.internal:9090` como `apiBaseUrl` y el id de un producto existente. Este hostname permite que el contenedor de n8n llegue a la API del host. `localhost` dentro del contenedor se refiere al propio n8n.
 
-Si `API_KEY` está vacío localmente, selecciona **Authentication: None** en el nodo HTTP. Si la activaste, configura una credencial **Header Auth** con nombre de encabezado `X-API-Key` y tu clave como valor.
+Las consultas GET usan **Authentication: None**. Para escribir si activaste `API_KEY`, configura una credencial **Header Auth** con nombre de encabezado `X-API-Key` y tu clave como valor.
 
 ### n8n como cliente de Render
 
 1. En n8n Cloud o en tu n8n local, importa `n8n/consultar-producto.json`.
 2. Sustituye `https://TU-SERVICIO.onrender.com` por la URL HTTPS real de Render, sin `/` al final.
 3. Indica un `productoId` existente.
-4. En **Consultar producto**, crea o selecciona una credencial **Header Auth**: `Name = X-API-Key`, `Value =` la API_KEY de Render. El JSON exportado no contiene credenciales.
+4. El nodo **Consultar producto** usa **Authentication: None** porque GET es público. Para operaciones POST, PUT o DELETE, configura una credencial **Header Auth** con `Name = X-API-Key` y la API_KEY de Render como valor.
 5. Ejecuta el flujo. El nodo HTTP debe devolver `{"id":...,"nombre":"..."}`. Un 404 indica que ese producto no existe; un 401 indica que falta o no coincide la clave.
 
 n8n llama a la API por HTTPS; no necesita acceso directo a PostgreSQL ni las credenciales de la base de datos. Para crear o editar desde n8n, usa el mismo nodo HTTP con POST/PUT, encabezado `Content-Type: application/json` y cuerpo JSON con `nombre`.
+
+## Despliegue actual
+
+Catálogo público: https://api-productos-adrian-lqwk.onrender.com/api/productos
+
+Importa `n8n/listar-productos.json` para obtener todo el catálogo sin configurar credenciales. `n8n/consultar-producto.json` consulta un id concreto. Ambos incluyen la URL real de Render. Las escrituras siguen protegidas.

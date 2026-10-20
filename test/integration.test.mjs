@@ -34,9 +34,14 @@ test('health comprueba PostgreSQL y no requiere clave', async () => {
     assert.equal(result.status, 200);
     assert.deepEqual(result.data, { status: 'ok', database: 'postgresql' });
 });
-test('la API protegida rechaza peticiones sin clave', async () => {
-    assert.equal((await request('/api/productos', { auth: false })).status, 401);
-    assert.equal((await request('/productos', { auth: false })).status, 401);
+test('el catálogo es público y las escrituras requieren clave', async () => {
+    assert.equal((await request('/api/productos', { auth: false })).status, 200);
+    assert.equal((await request('/productos', { auth: false })).status, 200);
+    for (const ruta of ['/api/productos', '/productos']) {
+        assert.equal((await request(ruta, { method: 'POST', body: { nombre: 'Sin clave' }, auth: false })).status, 401);
+        assert.equal((await request(ruta + '/1', { method: 'PUT', body: { nombre: 'Sin clave' }, auth: false })).status, 401);
+        assert.equal((await request(ruta + '/1', { method: 'DELETE', auth: false })).status, 401);
+    }
 });
 test('CRUD completo y errores 404 para un producto eliminado', async () => {
     const created = await request('/api/productos', { method: 'POST', body: { nombre: '  Prueba integración  ' } });

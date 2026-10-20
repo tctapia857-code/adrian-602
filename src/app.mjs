@@ -22,7 +22,7 @@ export function createApp({ apiKey = config.API_KEY } = {}) {
         }
     });
     function authenticate(req, res, next) {
-        if (!apiKey) return next();
+        if (req.method === 'GET' || req.method === 'HEAD' || !apiKey) return next();
         const provided = Buffer.from(req.get('X-API-Key') || '');
         const expected = Buffer.from(apiKey);
         if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {

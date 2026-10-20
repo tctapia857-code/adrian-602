@@ -19,7 +19,7 @@
             {
               "id": "base",
               "name": "apiBaseUrl",
-              "value": "https://TU-SERVICIO.onrender.com",
+              "value": "https://api-productos-adrian-lqwk.onrender.com",
               "type": "string"
             },
             {
@@ -45,8 +45,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ $json.apiBaseUrl + '/api/productos/' + $json.productoId }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "options": {
           "timeout": 120000
         }

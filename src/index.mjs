@@ -2,9 +2,11 @@ import config from './middlewares/config.mjs';
 import { pool } from './middlewares/db.mjs';
 import { createApp } from './app.mjs';
 import { migrate } from '../scripts/migrate.mjs';
+import { seed } from '../scripts/seed.mjs';
 
 try {
     await migrate();
+    await seed();
     const server = createApp().listen(config.PORT, config.HOST, () => {
         console.log(`API de productos escuchando en el puerto ${config.PORT}`);
     });
