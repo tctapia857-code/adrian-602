@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS productos (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL CHECK (length(trim(nombre)) > 0)
+);

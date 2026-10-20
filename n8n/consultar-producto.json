@@ -1,0 +1,93 @@
+{
+  "name": "Consultar producto en API de Render",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Ejecutar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "base",
+              "name": "apiBaseUrl",
+              "value": "https://TU-SERVICIO.onrender.com",
+              "type": "string"
+            },
+            {
+              "id": "id",
+              "name": "productoId",
+              "value": 1,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config",
+      "name": "Configurar URL e ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.apiBaseUrl + '/api/productos/' + $json.productoId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "http",
+      "name": "Consultar producto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecutar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Configurar URL e ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar URL e ID": {
+      "main": [
+        [
+          {
+            "node": "Consultar producto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

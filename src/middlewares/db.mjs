@@ -1,26 +1,15 @@
-// Aquí se realiza la conexión a la base de datos
+import 'dotenv/config';
+import pg from 'pg';
 
-// Librería
-import mysql from "mysql2/promise";
-
-async function connect() {
-    try {
-     const connection = await mysql.createConnection({
-    host: "127.0.0.1",   // ⚠️ importante
-    user: "root",
-    password: "",        // ⚠️ en XAMPP normalmente vacío
-    database: "inventario_papeleria",
-    port: 3306
-});
-
-        return connection;
-    } catch (error) {
-        console.error(
-            "Error al conectar a la base de datos:",
-            error.message
-        );
-        throw error;
-    }
+if (!process.env.DATABASE_URL) {
+    throw new Error('Falta DATABASE_URL. Copia .env.example a .env para desarrollo local.');
 }
 
-export default connect;
+// pg respeta los parámetros TLS de DATABASE_URL. No se desactiva la verificación.
+export const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 10,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+});
+pool.on('error', (error) => console.error('Error en conexión PostgreSQL:', error.code));
