@@ -73,7 +73,7 @@ console.log('Referencia Gmail existente reutilizada. El flujo original no se mod
     Check-Docker
     Write-Host "Enviando un correo a $CorreoProfesor con el catalogo real de Render..."
     # Conserva el codigo de salida; el log queda local en n8n, no se sube a GitHub.
-    docker exec $Contenedor sh -c "n8n execute --id=$workflowId --rawOutput > /tmp/productos-resultado-envio.log 2>&1"
+    docker exec -e N8N_RUNNERS_BROKER_PORT=5680 $Contenedor sh -c "n8n execute --id=$workflowId --rawOutput > /tmp/productos-resultado-envio.log 2>&1"
     if ($LASTEXITCODE -ne 0) {
         throw 'n8n no confirmo el envio. Abre el flujo nuevo en n8n para revisar la conexion Gmail. No se marco como enviado.'
     }
