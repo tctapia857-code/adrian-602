@@ -109,3 +109,9 @@ n8n llama a la API por HTTPS; no necesita acceso directo a PostgreSQL ni las cre
 Catálogo público: https://api-productos-adrian-lqwk.onrender.com/api/productos
 
 Importa `n8n/listar-productos.json` para obtener todo el catálogo sin configurar credenciales. `n8n/consultar-producto.json` consulta un id concreto. Ambos incluyen la URL real de Render. Las escrituras siguen protegidas.
+
+## Enviar los productos al profesor con Gmail en n8n
+
+`n8n/enviar-productos-gmail.json` contiene un flujo nuevo: disparador manual → datos del correo → API de Render → tabla HTML → Gmail. Envía **un solo correo** con todos los productos. El destinatario se configura localmente; no se publica en el repositorio. Selecciona tu credencial Gmail en el último nodo antes de ejecutarlo.
+
+En Windows también puedes usar `scripts/preparar-envio-profesor.ps1` desde la carpeta del proyecto, pasando `-CorreoProfesor`, `-Alumno` y `-Grupo`. El script necesita Docker/n8n iniciados y una sola cuenta Gmail referenciada en tus flujos existentes. Conserva el flujo original, reutiliza únicamente el identificador de la credencial, importa un flujo independiente y lo ejecuta. **Esto envía el correo**. Comprueba la confirmación de Gmail y deja un marcador en el volumen de n8n para evitar repetir el envío. Si falta Gmail o hay varias cuentas, se detiene sin enviar. La automatización de PowerShell no se ha probado en Windows en este entorno; la construcción del mensaje se comprobó con los 15 productos reales y sin enviar correos.

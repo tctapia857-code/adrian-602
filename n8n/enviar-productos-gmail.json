@@ -1,0 +1,155 @@
+{
+  "name": "Enviar API de productos al profesor por Gmail",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Ejecutar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "destino",
+              "name": "correoProfesor",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "alumno",
+              "name": "alumno",
+              "value": "Adrian Tapia",
+              "type": "string"
+            },
+            {
+              "id": "grupo",
+              "name": "grupo",
+              "value": "602",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "datos",
+      "name": "Datos del correo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api-productos-adrian-lqwk.onrender.com/api/productos",
+        "authentication": "none",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "api",
+      "name": "Consultar API de productos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const config = $('Datos del correo').first().json;\nconst para = String(config.correoProfesor || '').trim();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(para)) {\n  throw new Error('Completa correoProfesor en el nodo Datos del correo antes de enviar.');\n}\nconst productos = $input.all().flatMap(item => Array.isArray(item.json) ? item.json : [item.json]);\nif (!productos.length || productos.some(p => !Number.isInteger(p.id) || typeof p.nombre !== 'string')) {\n  throw new Error('La API no devolvió un catálogo de productos válido. No se enviará el correo.');\n}\nconst esc = value => String(value).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nconst alumno = String(config.alumno || 'Adrian Tapia');\nconst grupo = String(config.grupo || '602');\nconst url = 'https://api-productos-adrian-lqwk.onrender.com/api/productos';\nconst filas = productos.map(p => `<tr><td style=\"padding:8px;border:1px solid #ccc\">${p.id}</td><td style=\"padding:8px;border:1px solid #ccc\">${esc(p.nombre)}</td></tr>`).join('');\nconst html = `<p>Buen día, profesor:</p><p>Comparto mi API de productos desarrollada en Node.js con PostgreSQL, desplegada en Render y consultada desde este flujo de n8n.</p><p><strong>Alumno:</strong> ${esc(alumno)}<br><strong>Grupo:</strong> ${esc(grupo)}</p><p><a href=\"${url}\">Consultar la API de productos</a></p><p>Productos obtenidos de la API: <strong>${productos.length}</strong>.</p><table style=\"border-collapse:collapse\"><thead><tr><th style=\"padding:8px;border:1px solid #ccc\">ID</th><th style=\"padding:8px;border:1px solid #ccc\">Producto</th></tr></thead><tbody>${filas}</tbody></table><p>Saludos,<br>${esc(alumno)}</p>`;\nreturn [{json: {para, asunto: `Entrega API de productos - ${alumno} - Grupo ${grupo}`, html, totalProductos: productos.length, apiUrl: url}}];"
+      },
+      "id": "tabla",
+      "name": "Preparar un solo correo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "gmail",
+      "name": "Enviar al profesor con Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecutar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Datos del correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos del correo": {
+      "main": [
+        [
+          {
+            "node": "Consultar API de productos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar API de productos": {
+      "main": [
+        [
+          {
+            "node": "Preparar un solo correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar un solo correo": {
+      "main": [
+        [
+          {
+            "node": "Enviar al profesor con Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
